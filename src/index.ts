@@ -164,24 +164,33 @@ function disconnect() {
 }
 
 
+const delay = ms => new Promise(res => setTimeout(res, ms));
 const init = async () => {
-  console.log("Initializing");
-  obs.disconnect();
-  inputs = {};
-  scenes = {};
+    console.log("Initializing");
+    obs.disconnect();
+    inputs = {};
+    scenes = {};
+    try {      
 
-  try {
-    $MM.setSettingsStatus("status", "Connecting...");
-
-    await connect();
-    registerListeners();
-    await Promise.all([mapSources(), mapScenes()]);
-
-    $MM.setSettingsStatus("status", "Connected");
-  } catch (err: any) {
-    console.warn("OBS error:", err);
-    $MM.setSettingsStatus("status", err.description || err.message || err);
-  }
+        $MM.setSettingsStatus("status", "Connecting...");
+        try { 
+            await connect();            
+        }
+        catch (err) {
+            for (let i = 10; i > -1; i--) {
+                await delay(1000); 
+                $MM.setSettingsStatus("status", "Retry connecting in " + i + " seconds...");              
+            }          
+            init();
+        }
+        registerListeners();
+        await Promise.all([mapSources(), mapScenes()]);
+        $MM.setSettingsStatus("status", "Connected");
+    }
+    catch (err) {
+        console.warn("OBS error:", err);
+        $MM.setSettingsStatus("status", err.description || err.message || err);
+    }
 };
 
 $MM.onSettingsButtonPress("reconnect", init);
